@@ -1,0 +1,38 @@
+# SQL derivation: a real-time filtered + enriched view of high-value claims.
+#
+# Before publishing, replace YOUR_PREFIX with your Estuary prefix
+# (shown in the dashboard, e.g. "christian-mcauley") and check the source
+# collection name matches the one your Postgres capture created
+# (Collections tab in the dashboard).
+#
+# Preview locally:   flowctl preview --source flow.yaml --name YOUR_PREFIX/warranty/high_value_claims
+# Publish:           flowctl catalog publish --source flow.yaml
+
+collections:
+  ChristianMcAuley/warranty/high_value_claims:
+    schema:
+      type: object
+      properties:
+        claim_id:     { type: integer }
+        vin:          { type: string }
+        model:        { type: string }
+        component:    { type: string }
+        dealer_code:  { type: string }
+        market:       { type: string }
+        claim_amount: { type: integer }
+        severity:     { type: string, enum: [high, critical] }
+        status:       { type: string }
+        submitted_at: { type: string, format: date-time }
+        updated_at:   { type: string, format: date-time }
+      required: [claim_id, claim_amount, severity, status]
+    key: [/claim_id]
+
+    derive:
+      using:
+        sqlite: {}
+      transforms:
+        - name: fromWarrantyClaims
+          # Collection created by your Postgres capture
+          source: ChristianMcAuley/warranty-postgres/public/warranty_claims
+          shuffle: any
+          lambda: high_value_claims.sql

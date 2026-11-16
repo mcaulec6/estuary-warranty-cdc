@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: warranty-postgres
+    # wal_level=logical is what makes CDC possible: Postgres writes enough
+    # detail to its write-ahead log (WAL) for Estuary to decode row-level changes.
+    # max_slot_wal_keep_size caps how much WAL an inactive replication slot can
+    # hold back, so a paused capture can't fill the disk (a classic CDC outage).
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=5
+      - -c
+      - max_wal_senders=5
+      - -c
+      - max_slot_wal_keep_size=1GB
+    environment:
+      POSTGRES_DB: warranty
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      FLOW_CAPTURE_PASSWORD: ${FLOW_CAPTURE_PASSWORD:?Set FLOW_CAPTURE_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d warranty"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
